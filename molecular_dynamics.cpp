@@ -23,6 +23,8 @@
 // the matrix-width and the number of work-items per work-group:
 // note: the matrices are actually MATWxMATW and the work group sizes are LOCALSIZExLOCALSIZE:
 
+// To Do: Implement dynamic memory allocation for the matrices and the local size.
+
 #ifndef MATW
 #define MATW		1024
 #endif
