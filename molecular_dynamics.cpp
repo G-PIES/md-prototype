@@ -72,14 +72,13 @@ int main( int argc, char *argv[ ] )
 	// see if we can even open the OpenCL kernel programs
 	// (no point going on if we can't):
 
-	FILE *fp1;
-	FILE *fp2;
+	FILE *fp;
 #ifdef WIN32
 	errno_t err1 = fopen_s( &fp1, CL_FILE_NAME, "r" );
 	if ( err1 != 0 || err2 != 0)
 #else
-	fp1 = fopen( CL_FILE_NAME, "r" );
-	if ( fp1 == NULL || fp2 == NULL)
+	fp = fopen( CL_FILE_NAME, "r" );
+	if ( fp == NULL)
 #endif
 	{
 		fprintf( stderr, "Cannot open OpenCL source file '%s'\n", CL_FILE_NAME );
