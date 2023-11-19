@@ -31,6 +31,10 @@
 #define	LOCALSIZE	8
 #endif
 
+#ifndef NUM_MODELS
+#define NUM_MODELS	1
+#endif
+
 // OpenCL objects:
 cl_platform_id		Platform;
 cl_device_id		Device;
@@ -49,8 +53,7 @@ float			hA[MATW][MATW];
 float			hB[MATW][MATW];
 float			hC[MATW][MATW];
 
-const char *	CL_FILE_NAME_1 = { "matrix_mult.cl" };
-const char *	CL_FILE_NAME_2 = { "matrix_add.cl" };
+const char *	CL_FILE_NAME = { "molecular_dynamics.cl" };
 
 // function prototypes:
 void			SelectOpenclDevice();
@@ -72,16 +75,14 @@ int main( int argc, char *argv[ ] )
 	FILE *fp1;
 	FILE *fp2;
 #ifdef WIN32
-	errno_t err1 = fopen_s( &fp1, CL_FILE_NAME_1, "r" );
-	errno_t err2 = fopen_s( &fp2, CL_FILE_NAME_2, "r" );
+	errno_t err1 = fopen_s( &fp1, CL_FILE_NAME, "r" );
 	if ( err1 != 0 || err2 != 0)
 #else
-	fp1 = fopen( CL_FILE_NAME_1, "r" );
-	fp2 = fopen( CL_FILE_NAME_2, "r" );
+	fp1 = fopen( CL_FILE_NAME, "r" );
 	if ( fp1 == NULL || fp2 == NULL)
 #endif
 	{
-		fprintf( stderr, "Cannot open OpenCL source file '%s' or '%s'\n", CL_FILE_NAME_1, CL_FILE_NAME_2 );
+		fprintf( stderr, "Cannot open OpenCL source file '%s'\n", CL_FILE_NAME );
 		return 1;
 	}
 
@@ -149,6 +150,7 @@ int main( int argc, char *argv[ ] )
 	if( status != CL_SUCCESS )
 		fprintf( stderr, "clCreateBuffer failed for dC (1)\n" );
 
+
 	// 6. Enqueue the 3 commands to write the data from the host buffers to the device buffers:
 
 	// Enqueue the data from matrix A to the device.
@@ -169,41 +171,28 @@ int main( int argc, char *argv[ ] )
 	Wait( CmdQueue );
 
 
-	// This code is for the MatrixMult and MatrixAdd GPU parallelization functions.
-	// 7. Read the kernel code from the matrix_mult.cl and matrix_add.cl files ...
+	// This code is for the Molecular Dynamics model
+	// 7. Read the kernel code from the molecular_dynamics.cl file ...
 
-	// Read matrix_mult.cl for MatrixMult
+	// Read molecular_dynamics.cl for 
 	fseek( fp1, 0, SEEK_END );
 	size_t fileSize = ftell( fp1 );
 	fseek( fp1, 0, SEEK_SET );
-	char *clProgramTextMatMult = new char[ fileSize+1 ];		// leave room for '\0'
-	size_t n = fread( clProgramTextMatMult, 1, fileSize, fp1 );
-	clProgramTextMatMult[fileSize] = '\0';
+	char *clProgramTextMD = new char[ fileSize+1 ];		// leave room for '\0'
+	size_t n = fread( clProgramTextMD, 1, fileSize, fp1 );
+	clProgramTextMD[fileSize] = '\0';
 	fclose( fp1 );
 	if( n != fileSize )
-		fprintf( stderr, "Expected to read %d bytes from '%s' -- actually read %d.\n", fileSize, CL_FILE_NAME_1, n );
-
-	// Read matrix_add.cl for MatrixAdd
-	fseek( fp2, 0, SEEK_END );
-	fileSize = ftell( fp2 );
-	fseek( fp2, 0, SEEK_SET );
-	char *clProgramTextMatAdd = new char[ fileSize+1 ];		// leave room for '\0'
-	n = fread( clProgramTextMatAdd, 1, fileSize, fp2 );
-	clProgramTextMatAdd[fileSize] = '\0';
-	fclose( fp2 );
-	if( n != fileSize )
-		fprintf( stderr, "Expected to read %d bytes from '%s' -- actually read %d.\n", fileSize, CL_FILE_NAME_2, n );
+		fprintf( stderr, "Expected to read %d bytes from '%s' -- actually read %d.\n", fileSize, CL_FILE_NAME, n );
 
 	// ... and create the kernel program:
 
-	char *strings[2];
-	strings[0] = clProgramTextMatMult;	// Add both the MatrixMult and MatrixAdd kernels to the list of string pointers
-	strings[1] = clProgramTextMatAdd;	// for use with creating the program.
-	Program = clCreateProgramWithSource( Context, 2, (const char **)strings, NULL, &status );	// IMPORTANT: Multiple kernel .cl files can be read in.
+	char *strings[NUM_MODELS];
+	strings[0] = clProgramTextMD;	// Add the MD kernel to the list of string pointers for use with creating the program.
+	Program = clCreateProgramWithSource( Context, NUM_MODELS, (const char **)strings, NULL, &status );	// IMPORTANT: Multiple kernel .cl files can be read in.
 	if( status != CL_SUCCESS )
 		fprintf( stderr, "clCreateProgramWithSource failed\n" );
-	delete [ ] clProgramTextMatMult;
-	delete [ ] clProgramTextMatAdd;
+	delete [ ] clProgramTextMD;
 
 
 	// 8. Compile and link the kernel code:
@@ -221,12 +210,12 @@ int main( int argc, char *argv[ ] )
 	}
 
 
-	// 9. Create the kernel object (for MatrixMult):
+	// 9. Create the kernel object for MD:
 
-	// Create a Kernel for the MatrixMult function.
-	Kernel = clCreateKernel( Program, "MatrixMult", &status );
+	// Create a Kernel for the MD function.
+	Kernel = clCreateKernel( Program, "MD", &status );
 	if( status != CL_SUCCESS )
-		fprintf( stderr, "clCreateKernel failed for MatrixMult\n" );
+		fprintf( stderr, "clCreateKernel failed for MD\n" );
 
 
 	// 10. setup the arguments to the kernel object:
@@ -258,7 +247,7 @@ int main( int argc, char *argv[ ] )
 	size_t localWorkSize[3]  = { LOCALSIZE, LOCALSIZE, 1 };
 
 #ifndef CSV
-	fprintf( stderr, "MatrixMult\n");
+	fprintf( stderr, "Molecular Dynamics Model\n");
 	fprintf( stderr, "Number of Work Groups = %5d x %5d\n", MATW/LOCALSIZE, MATW/LOCALSIZE );
 #endif
 
@@ -287,83 +276,12 @@ int main( int argc, char *argv[ ] )
 	fprintf( stderr, "%8d , %6d , %10.2lf, %12.2f\n",
 		MATW*MATW, LOCALSIZE*LOCALSIZE, (double)MATW*(double)MATW*(double)MATW/(time1-time0)/1000000000., hC[MATW-1][MATW-1] );
 #else
-	fprintf( stderr, "Matrix Multiplication Results");								// For MatrixMult, dC[MATW-1][MATW-1] = 2.0
+	fprintf( stderr, "Molecular Dynamics Results");		// For MatrixMult, dC[MATW-1][MATW-1] = 2.0
 	fprintf( stderr, "Matrix Size: %6d x %6d , Work Elements: %4d x %4d , GigaMultsPerSecond: %10.2lf, dC[%6d][%6d] = %12.2f\n",
 		MATW, MATW, LOCALSIZE, LOCALSIZE, (double)MATW*(double)MATW*(double)MATW/(time1-time0)/1000000000., MATW-1, MATW-1, hC[MATW-1][MATW-1] );
 #endif
 	fprintf(stderr, "\n");
 
-	// 9. Create the kernel object (for MatrixAdd):
-
-	// Create a Kernel for the MatrixMult function.
-	Kernel = clCreateKernel( Program, "MatrixAdd", &status );
-	if( status != CL_SUCCESS )
-		fprintf( stderr, "clCreateKernel failed for MatrixAdd\n" );
-
-
-	// 10. setup the arguments to the kernel object:
-	
-	// Passing the dA matrix argument to the kernal object
-	status = clSetKernelArg( Kernel, 0, sizeof(cl_mem), &dA);
-	if ( status != CL_SUCCESS )
-		fprintf( stderr, "clSetKernelArg failed for dA (%d)\n", status);
-	
-	// Passing the dB matrix argument to the kernal object
-	status = clSetKernelArg( Kernel, 1, sizeof(cl_mem), &dB);
-	if ( status != CL_SUCCESS )
-		fprintf( stderr, "clSetKernelArg failed for dB (%d)\n", status);
-
-	// Passing the dMW matrix width argument to the kernal object
-	status = clSetKernelArg( Kernel, 2, sizeof(cl_mem), &dMW);
-	if ( status != CL_SUCCESS )
-		fprintf( stderr, "clSetKernelArg failed for dMW (%d)\n", status);
-
-	// Passing the dC matrix argument to the kernal object
-	status = clSetKernelArg( Kernel, 3, sizeof(cl_mem), &dC);
-	if ( status != CL_SUCCESS )
-		fprintf( stderr, "clSetKernelArg failed for dC (%d)\n", status);
-	
-
-	// 11. enqueue the kernel object for execution:
-
-	size_t globalWorkSize[3] = { MATW,      MATW,      1 };
-	size_t localWorkSize[3]  = { LOCALSIZE, LOCALSIZE, 1 };
-
-#ifndef CSV
-	fprintf( stderr, "MatrixAdd\n");
-	fprintf( stderr, "Number of Work Groups = %5d x %5d\n", MATW/LOCALSIZE, MATW/LOCALSIZE );
-#endif
-
-	Wait( CmdQueue );
-
-	double time0 = omp_get_wtime( );
-
-	status = clEnqueueNDRangeKernel( CmdQueue, Kernel, 2, NULL, globalWorkSize, localWorkSize, 0, NULL, NULL);
-	if( status != CL_SUCCESS )
-		fprintf( stderr, "clEnqueueNDRangeKernel failed: %d\n", status );
-
-	Wait( CmdQueue );
-	double time1 = omp_get_wtime( );
-
-
-	// 12. read the results buffer back from the device to the host:
-
-	status = clEnqueueReadBuffer( CmdQueue, dC, CL_FALSE, 0, cSize, hC, 0, NULL, NULL );
-	if( status != CL_SUCCESS )
-			fprintf( stderr, "clEnqueueReadBuffer failed\n" );
-
-	Wait( CmdQueue );
-
-
-#ifdef CSV
-	fprintf( stderr, "%8d , %6d , %10.2lf, %12.2f\n",
-		MATW*MATW, LOCALSIZE*LOCALSIZE, (double)MATW*(double)MATW*(double)MATW/(time1-time0)/1000000000., hC[MATW-1][MATW-1] );
-#else
-	fprintf( stderr, "Matrix Additionn Results");									// For MatrixAdd, dC[MATW-1][MATW-1] = 3.0
-	fprintf( stderr, "Matrix Size: %6d x %6d , Work Elements: %4d x %4d , GigaAddsPerSecond: %10.2lf, dC[%6d][%6d] = %12.2f\n",
-		MATW, MATW, LOCALSIZE, LOCALSIZE, (double)MATW*(double)MATW*(double)MATW/(time1-time0)/1000000000., MATW-1, MATW-1, hC[MATW-1][MATW-1] );
-#endif
-	fprintf(stderr, "\n");
 
 	// 13. clean everything up:
 
