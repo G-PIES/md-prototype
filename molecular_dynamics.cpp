@@ -8,7 +8,7 @@
  */
 
 
-// 1. Program header
+// 1. Program headers
 
 #include <stdio.h>
 #include <math.h>
@@ -174,13 +174,13 @@ int main( int argc, char *argv[ ] )
 	// 7. Read the kernel code from the molecular_dynamics.cl file ...
 
 	// Read molecular_dynamics.cl for 
-	fseek( fp1, 0, SEEK_END );
-	size_t fileSize = ftell( fp1 );
-	fseek( fp1, 0, SEEK_SET );
+	fseek( fp, 0, SEEK_END );
+	size_t fileSize = ftell( fp );
+	fseek( fp, 0, SEEK_SET );
 	char *clProgramTextMD = new char[ fileSize+1 ];		// leave room for '\0'
-	size_t n = fread( clProgramTextMD, 1, fileSize, fp1 );
+	size_t n = fread( clProgramTextMD, 1, fileSize, fp );
 	clProgramTextMD[fileSize] = '\0';
-	fclose( fp1 );
+	fclose( fp );
 	if( n != fileSize )
 		fprintf( stderr, "Expected to read %d bytes from '%s' -- actually read %d.\n", fileSize, CL_FILE_NAME, n );
 
