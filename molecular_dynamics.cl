@@ -1,7 +1,7 @@
 #define IN
 #define OUT
 
-kernel void MD( IN global const float *dA, IN global const float *dB, IN global int *dMW, OUT global float *dC )
+kernel void MolecularDynamics( IN global const float *deviceLatice, IN global int *dMW, OUT global float *dC )
 {
 	// [dA] is dMW x dMW
 	// [dB] is dMW x dMW
@@ -24,4 +24,11 @@ kernel void MD( IN global const float *dA, IN global const float *dB, IN global 
 		bindex += mw;
 	}
 	dC[cindex] = cij;
+}
+
+kernel void CellAtomAssignGPU( global int )
+{
+	int mw = *dMW;
+	int row = get_global_id( 0 );
+	int col = get_global_id( 1 );
 }

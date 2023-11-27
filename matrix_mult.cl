@@ -16,7 +16,7 @@ kernel void MatrixMult( IN global const float *dA, IN global const float *dB, IN
 	int bindex = ccol;				// b[0][j]
 	int cindex = crow * mw + ccol;	// c[i][j]
 
-	float cij = 0.;
+	float cij = 0.0f;
 	for( int k = 0; k < mw; k++ )
 	{
 		cij += dA[aindex] * dB[bindex];
