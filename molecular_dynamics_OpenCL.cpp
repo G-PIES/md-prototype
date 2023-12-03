@@ -142,6 +142,16 @@ int main( int argc, char *argv[ ] )
 	// (N3)
 	int numLayers = maxVal(atomsPerCell, NUM_CELLS);
 
+	// Build the cell-layer occupancy matrix H by setting H_c_i,l_i = i for each atom i.
+	// The roll and column indices of H_c,l specify the cell (c <= N_c) and layer (l <= N_l)
+	// (N4)
+
+
+	// Construct the neighbor matrix W. For each atom i there are two nested loops to access
+	// the neighbors i' = H_c,l, first over the corresponding cells c of c_i, and then over
+	// layers l <= k_c.
+	// (N5)
+
 
 	// 3. Create an OpenCL context:
 
